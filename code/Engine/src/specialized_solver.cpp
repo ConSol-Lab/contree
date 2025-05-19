@@ -51,7 +51,6 @@ void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, int
     const auto& split_feature = dataview.get_sorted_dataset_feature(feature_index);
     const auto& unsorted_split_feature = dataview.get_unsorted_dataset_feature(feature_index);
     std::vector<int> split_feature_split_indices(unsorted_split_feature.size());
-    double prev = -1.0f;
     int split_index = -1;
     for (const auto& split_feature_data : split_feature) {
         split_feature_split_indices[split_feature_data.data_point_index] = split_feature_data.unique_value_index;
@@ -59,15 +58,18 @@ void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, int
             split_index = split_feature_data.unique_value_index;
         }
     }
+    RUNTIME_ASSERT(split_index != -1, "Split index not found.");
 
     const int dataset_size = dataview.get_dataset_size();
     const int class_number = dataview.get_class_number();
 
+    RUNTIME_ASSERT(split_point > 0 && split_point < dataset_size, "left and right subtree need to be non-empty.");
     Depth1ScoreHelper left_tree(split_point, class_number);
     Depth1ScoreHelper right_tree(dataset_size - split_point, class_number);
+    
 
-    left_tree.classification_score = left_tree.size - upper_bound;
-    right_tree.classification_score = right_tree.size - upper_bound;
+    left_tree.classification_score = std::max(0, left_tree.size - upper_bound);
+    right_tree.classification_score = std::max(0, right_tree.size - upper_bound);
 
     Dataview::initialize_split_parameters(split_feature, class_number, dataview.get_label_frequency(), split_point, left_tree.label_frequency, right_tree.label_frequency);
 
@@ -106,15 +108,21 @@ void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, int
         left_optimal_dt->make_leaf(left_tree.max_label, left_tree.size - left_tree.classification_score);
     } else {
         left_optimal_dt->update_split(left_tree.best_feature_index, left_tree.best_threshold, std::make_shared<Tree>(left_tree.best_left_label, -1), std::make_shared<Tree>(left_tree.best_right_label, -1));
+        RUNTIME_ASSERT(left_tree.best_left_label != -1, "Left tree left label should be initialized.");
+        RUNTIME_ASSERT(left_tree.best_right_label != -1, "Left tree right label should be initialized.");
     }
     left_optimal_dt->misclassification_score = left_tree.size - left_tree.classification_score;
+    RUNTIME_ASSERT(left_optimal_dt->misclassification_score >= 0, "LR - Left tree misclassification score should be non-negative.");
 
     if (right_tree.classification_score == right_tree.max_label_frequency) {
         right_optimal_dt->make_leaf(right_tree.max_label, right_tree.size - right_tree.classification_score);
     } else {
         right_optimal_dt->update_split(right_tree.best_feature_index, right_tree.best_threshold, std::make_shared<Tree>(right_tree.best_left_label, -1), std::make_shared<Tree>(right_tree.best_right_label, -1));
+        RUNTIME_ASSERT(right_tree.best_left_label != -1, "Right tree left label should be initialized.");
+        RUNTIME_ASSERT(right_tree.best_right_label != -1, "Right tree right label should be initialized.");
     }
     right_optimal_dt->misclassification_score = right_tree.size - right_tree.classification_score;
+    RUNTIME_ASSERT(right_optimal_dt->misclassification_score >= 0, "LR - Right tree misclassification score should be non-negative.");
 }
 
 template <bool is_same_feature>
@@ -177,6 +185,7 @@ void SpecializedSolver::process_depth_one_feature(const Dataview& dataview,
         }
 
         if (left_classification_score + right_classification_score > tree.classification_score) {
+            RUNTIME_ASSERT(tree.classification_score <= tree.size, "LR - Classification score cannot exceed the number of instances.");
             tree.classification_score = left_classification_score + right_classification_score;
             tree.best_feature_index = current_feature_index;
             tree.best_threshold = (current_feature_data.value + tree.previous_value) / 2.0f;
@@ -233,14 +242,16 @@ void SpecializedSolver::create_optimal_decision_tree(const Dataview& dataview, c
         const int mid = (left + right) / 2;
         const int split_point = possible_split_indices[mid];
 
-        const float threshold = mid > 0 ? (current_feature[possible_split_indices[mid - 1]].value + current_feature[split_point].value) / 2.0f
-            : current_feature[split_point].value - 2 * EPSILON;
+        const float threshold = mid > 0 ? (current_feature[possible_split_indices[mid - 1]].value + current_feature[split_point].value) / 2.0f 
+                                  : (current_feature[split_point].value + current_feature[0].value) / 2.0f;  
 
         std::shared_ptr<Tree> left_optimal_dt = std::make_shared<Tree>();
         std::shared_ptr<Tree> right_optimal_dt = std::make_shared<Tree>();
 
         statistics::total_number_of_specialized_solver_calls += 1;
         get_best_left_right_scores(dataview, feature_index, split_point, threshold, left_optimal_dt, right_optimal_dt, current_optimal_decision_tree->misclassification_score);
+        RUNTIME_ASSERT(left_optimal_dt->misclassification_score >= 0, "D2 - Left tree should have non-negative misclassification score.");
+        RUNTIME_ASSERT(right_optimal_dt->misclassification_score >= 0, "D2 - Right tree should have non-negative misclassification score.");
 
         const int current_best_score = left_optimal_dt->misclassification_score + right_optimal_dt->misclassification_score;
 

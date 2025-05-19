@@ -42,12 +42,14 @@ void Dataset::compute_unique_value_indices() {
         std::sort(idx.begin(), idx.end(),
             [&cur_feature_data](size_t i1, size_t i2) {return cur_feature_data[i1].value < cur_feature_data[i2].value;});
         double prev = -1.0f;
+        bool first = true;
         int cur_unique_value_index = -1;
         for (size_t ix : idx) {
             auto& cur_feature_element = cur_feature_data[ix];
-            if (prev == -1.0f || cur_feature_element.value - prev >= EPSILON) cur_unique_value_index++;
+            if (first || cur_feature_element.value - prev >= EPSILON) cur_unique_value_index++;
             cur_feature_element.unique_value_index = cur_unique_value_index;
             prev = cur_feature_element.value;
+            first = false;
         }
 
     }

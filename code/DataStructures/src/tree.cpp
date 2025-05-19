@@ -32,6 +32,8 @@ int Tree::get_num_branching_nodes() const {
 }
 
 void Tree::make_leaf(int label, int misclassifications) {
+    RUNTIME_ASSERT(misclassifications >= 0, "Leaf should have non-negative misclassifications.");
+    RUNTIME_ASSERT(label >= 0, "Leaf label should be non-negative.");
     this->label = label;
     this->misclassification_score = misclassifications;
     left = nullptr;

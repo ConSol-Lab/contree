@@ -53,7 +53,7 @@ void GeneralSolver::create_optimal_decision_tree(const Dataview& dataview, const
     while(!unsearched_intervals.empty()) {
         if (!solution_configuration.stopwatch.IsWithinTimeLimit()) return;
         auto current_interval = unsearched_intervals.front(); unsearched_intervals.pop();
-                
+
         if (interval_pruner.subinterval_pruning(current_interval, current_optimal_decision_tree->misclassification_score)) {
             continue;
         }
@@ -70,7 +70,7 @@ void GeneralSolver::create_optimal_decision_tree(const Dataview& dataview, const
         const int interval_half_distance = std::max(split_point - possible_split_indices[left], possible_split_indices[right] - split_point);
 
         const float threshold = mid > 0 ? (current_feature[possible_split_indices[mid - 1]].value + current_feature[split_point].value) / 2.0f 
-                                  : current_feature[split_point].value - 2 * EPSILON;  
+                                  : (current_feature[split_point].value + current_feature[0].value) / 2.0f;  
 
         Dataview left_dataview = Dataview(dataview.get_class_number(), dataview.should_sort_by_gini_index());
         Dataview right_dataview = Dataview(dataview.get_class_number(), dataview.should_sort_by_gini_index());
@@ -101,11 +101,16 @@ void GeneralSolver::create_optimal_decision_tree(const Dataview& dataview, const
             statistics::total_number_of_general_solver_calls += 1;
             const Configuration right_solution_configuration = solution_configuration.GetRightSubtreeConfig(left_solution_configuration.max_gap);
             GeneralSolver::create_optimal_decision_tree(smaller_data, right_solution_configuration, smaller_optimal_dt, smaller_ub);
-        
-            const int current_best_score = left_optimal_dt->misclassification_score + right_optimal_dt->misclassification_score;
-            if (current_best_score < current_optimal_decision_tree->misclassification_score) {
-                current_optimal_decision_tree->misclassification_score = current_best_score;
+            RUNTIME_ASSERT(left_optimal_dt->misclassification_score >= 0, "Left tree should have non-negative misclassification score.");
+            RUNTIME_ASSERT(right_optimal_dt->misclassification_score >= 0, "Right tree should have non-negative misclassification score.");
 
+            const int current_best_score = left_optimal_dt->misclassification_score + right_optimal_dt->misclassification_score;
+
+            if (current_best_score < current_optimal_decision_tree->misclassification_score) {
+                RUNTIME_ASSERT(left_optimal_dt->is_initialized(), "Left tree should be initialized.");
+                RUNTIME_ASSERT(right_optimal_dt->is_initialized(), "Right tree should be initialized.");
+
+                current_optimal_decision_tree->misclassification_score = current_best_score;
                 current_optimal_decision_tree->update_split(feature_index, threshold, left_optimal_dt, right_optimal_dt);
 
                 if (current_best_score == 0) {
@@ -155,6 +160,7 @@ void GeneralSolver::calculate_leaf_node(int class_number, int instance_number, c
     const int best_misclassification_score = instance_number - best_classification_score;
 
     if (best_misclassification_score < current_optimal_decision_tree->misclassification_score) {
+        RUNTIME_ASSERT(best_classification_label != -1, "Cannot assign negative leaf label.");
         current_optimal_decision_tree->make_leaf(best_classification_label, best_misclassification_score);
     }
 }
