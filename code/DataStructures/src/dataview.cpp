@@ -142,7 +142,7 @@ const std::vector<int>& Dataview::get_possible_split_indices(int feature_index) 
     return possible_split_indices[feature_index];
 }
 
-void Dataview::split_data_points(const Dataview& current_dataview, int feature_index, int split_point, float threshold, Dataview& left_dataview, Dataview& right_dataview, int current_max_depth) {    
+void Dataview::split_data_points(const Dataview& current_dataview, int feature_index, int split_point, int split_unique_value_index, Dataview& left_dataview, Dataview& right_dataview, int current_max_depth) {
     left_dataview.feature_data.resize(current_dataview.get_feature_number());
     right_dataview.feature_data.resize(current_dataview.get_feature_number());
 
@@ -190,7 +190,7 @@ void Dataview::split_data_points(const Dataview& current_dataview, int feature_i
         std::vector<int> right_tree_right_label_frequency(right_dataview.label_frequency);
 
         for (const auto& feature_data : it) {
-            if (unsorted_split_feature[feature_data.data_point_index].value > threshold) {
+            if (unsorted_split_feature[feature_data.data_point_index].unique_value_index >= split_unique_value_index) {
                 right_split_feature_data[right_counter] = feature_data;
 
                 if (feature_data.unique_value_index != rigth_last_unique_index && rigth_last_unique_index != -1) {

@@ -49,7 +49,7 @@ public:
     int get_class_number() const;
     const std::vector<int>& get_label_frequency() const;
 
-    static void split_data_points(const Dataview& current_dataview, int feature_index, int split_point, float threshold, Dataview& left_data, Dataview& right_data, int current_max_depth);
+    static void split_data_points(const Dataview& current_dataview, int feature_index, int split_point, int split_unique_value_index, Dataview& left_data, Dataview& right_data, int current_max_depth);
     static void initialize_split_parameters(const std::vector<Dataset::FeatureElement>& current_feature, int class_number, const std::vector<int>& current_label_frequency, int split_point, std::vector<int> &left_label_frequency, std::vector<int> &right_label_frequency);
 
     DataviewBitset& get_bitset() const {

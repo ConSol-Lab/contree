@@ -71,10 +71,11 @@ void GeneralSolver::create_optimal_decision_tree(const Dataview& dataview, const
 
         const float threshold = mid > 0 ? (current_feature[possible_split_indices[mid - 1]].value + current_feature[split_point].value) / 2.0f 
                                   : (current_feature[split_point].value + current_feature[0].value) / 2.0f;  
+        const int split_unique_value_index = current_feature[split_point].unique_value_index;
 
         Dataview left_dataview = Dataview(dataview.get_class_number(), dataview.should_sort_by_gini_index());
         Dataview right_dataview = Dataview(dataview.get_class_number(), dataview.should_sort_by_gini_index());
-        Dataview::split_data_points(dataview, feature_index, split_point, threshold, left_dataview, right_dataview, solution_configuration.max_depth);
+        Dataview::split_data_points(dataview, feature_index, split_point, split_unique_value_index, left_dataview, right_dataview, solution_configuration.max_depth);
 
         std::shared_ptr<Tree> left_optimal_dt  = std::make_shared<Tree>(-1, current_optimal_decision_tree->misclassification_score);
         std::shared_ptr<Tree> right_optimal_dt = std::make_shared<Tree>(-1, current_optimal_decision_tree->misclassification_score);
