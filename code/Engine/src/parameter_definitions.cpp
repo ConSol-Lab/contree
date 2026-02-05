@@ -29,6 +29,16 @@ ParameterHandler ParameterHandler::DefineParameters() {
 		20 //max value
 	);
 
+	parameters.DefineFloatParameter
+	(
+		"complexity-cost",
+		"The cost of adding a branching node, expressed as a percentage of the training data size.",
+		0.0, //default value
+		"Main Parameters",
+		0, //min value
+		1.0 //max value
+	);
+
     parameters.DefineIntegerParameter
     (
         "max-gap",

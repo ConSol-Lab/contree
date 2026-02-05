@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pycontree"
-version = "1.0.5"
+version = "1.0.6"
 requires-python = ">=3.10"
 description = "Python Wrapper ConTree: Optimal Decision Trees for Continuous Feature Data"
 license=  {file = "LICENSE"}

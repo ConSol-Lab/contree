@@ -2,12 +2,12 @@
 
 Tree::Tree() = default;
 
-Tree::Tree(int label, int misclassifications) 
-    : label(label), misclassification_score(misclassifications) {}
+Tree::Tree(int label, float objective) 
+    : label(label), objective(objective) {}
 
-Tree::Tree(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right) 
+Tree::Tree(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right, float complexity_cost) 
     : split_feature(split_feature), split_threshold(split_threshold), 
-      left(left), right(right), misclassification_score(left->misclassification_score + right->misclassification_score) {}
+      left(left), right(right), objective(left->objective + right->objective + complexity_cost) {}
 
 bool Tree::is_leaf() const { 
     return split_feature == -1; 
@@ -35,20 +35,20 @@ void Tree::make_leaf(int label, int misclassifications) {
     RUNTIME_ASSERT(misclassifications >= 0, "Leaf should have non-negative misclassifications.");
     RUNTIME_ASSERT(label >= 0, "Leaf label should be non-negative.");
     this->label = label;
-    this->misclassification_score = misclassifications;
+    this->objective = misclassifications;
     left = nullptr;
     right = nullptr;
     split_feature = -1;
     split_threshold = 0.0;
 }
 
-void Tree::update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right) {
+void Tree::update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right, float complexity_cost) {
     this->label = -1;
     this->split_feature = split_feature;
     this->split_threshold = split_threshold;
     this->left = left;
     this->right = right;
-    this->misclassification_score = left->misclassification_score + right->misclassification_score;
+    this->objective = left->objective + right->objective + complexity_cost;
 }
 
 std::ostream& operator<<(std::ostream& os, const Tree& t) {

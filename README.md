@@ -86,6 +86,7 @@ Run the program without any parameters to see a full list of the available param
 ## Parameters
 ConTree can be configured by the following parameters:
 * `max_depth` : The maximum depth of the tree. Note that a tree of depth zero has a single leaf node. A tree of depth one has one branching node and two leaf nodes.
+* `complexity_cost` : The cost of adding of adding a branching node (between 0 and 1).
 * `max_gap` : The maximum permissible gap to the optimal solution.
 * `max_gap_decay` : Use this parameter, if you want to find solutions iteratively, with each iteration decreasing the `max_gap` by multiplying it with `max_gap_decay`.
 * `time_limit` : The run time limit in seconds. If the time limit is exceeded a possibly non-optimal tree is returned.
@@ -107,3 +108,4 @@ Other related work:
 * Lin, Jimmy, et al. "Generalized and scalable optimal sparse decision trees." In _International Conference on Machine Learning_ (2020). [pdf](https://proceedings.mlr.press/v119/lin20g/lin20g.pdf) / [source](https://github.com/Jimmy-Lin/GeneralizedOptimalSparseDecisionTrees)
 * Aglin, Gaël, Siegfried Nijssen, and Pierre Schaus. "Learning optimal decision trees using caching branch-and-bound search." In _Proceedings of the AAAI conference on artificial intelligence_ (2020). [pdf](https://ojs.aaai.org/index.php/AAAI/article/download/5711/5567) / [source](https://github.com/aia-uclouvain/pydl8.5)
 * Mazumder, Rahul, Xiang Meng, and Haoyue Wang. "Quant-BnB: A scalable branch-and-bound method for optimal decision trees with continuous features." In _International Conference on Machine Learning_ (2022). [pdf](https://proceedings.mlr.press/v162/mazumder22a/mazumder22a.pdf) / [source](https://github.com/mengxianglgal/Quant-BnB)
+* Kiossou, Harold, Pierre Schaus, and Siegfried Nijssen. "Anytime Optimal Decision Tree Learning with Continuous Features." _arXiv preprint arXiv:2601.14765_ (2026). [pdf](https://arxiv.org/pdf/2601.14765) / [source](https://anonymous.4open.science/r/contree-rs-C7B8)

@@ -32,6 +32,10 @@ Dataview::Dataview(Dataset* sorted_dataset, Dataset* unsorted_dataset, int class
         for (int i = 0; i < first_feature.size() - 1; i++) {
             right_label_frequency[first_feature[i].label]--;
             left_label_frequency[first_feature[i].label]++;
+            
+            // we cannot compute a gini value if there is no split here
+            if (first_feature[i].unique_value_index == first_feature[i + 1].unique_value_index) continue;
+
 
             float left_gini = 1.0f; float right_gini = 1.0f;
             int left_count = i + 1; int right_count = int(first_feature.size()) - left_count;
@@ -78,9 +82,12 @@ Dataview::Dataview(Dataset* sorted_dataset, Dataset* unsorted_dataset, int class
                 right_label_frequency[current_feature[feature_element_idx].label]--;
                 left_label_frequency[current_feature[feature_element_idx].label]++;
 
+                // we cannot compute a gini value if there is no split here
+                if (feature_element_idx < current_feature.size() - 1
+                    && current_feature[feature_element_idx].unique_value_index == current_feature[feature_element_idx + 1].unique_value_index) continue;
+
                 float left_gini = 1.0f; float right_gini = 1.0f;
                 int left_count = feature_element_idx + 1; int right_count = int(current_feature.size()) - left_count;
-
 
                 for (int label = 0; label < class_number; label++) {
                     if (left_count > 0) {
@@ -142,7 +149,8 @@ const std::vector<int>& Dataview::get_possible_split_indices(int feature_index) 
     return possible_split_indices[feature_index];
 }
 
-void Dataview::split_data_points(const Dataview& current_dataview, int feature_index, int split_point, int split_unique_value_index, Dataview& left_dataview, Dataview& right_dataview, int current_max_depth) {
+void Dataview::split_data_points(const Dataview& current_dataview, int feature_index, int split_point, int split_unique_value_index,
+    Dataview& left_dataview, Dataview& right_dataview, int current_max_depth) {
     left_dataview.feature_data.resize(current_dataview.get_feature_number());
     right_dataview.feature_data.resize(current_dataview.get_feature_number());
 

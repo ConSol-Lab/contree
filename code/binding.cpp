@@ -74,6 +74,7 @@ PYBIND11_MODULE(ccontree, m) {
     }), py::keep_alive<0, 1>());
     config.def_readwrite("verbose", &Configuration::print_logs, "The verbosity of the solver.");
     config.def_readwrite("max_depth", &Configuration::max_depth, "The maximum depth of the tree.");
+    config.def_readwrite("complexity_cost", &Configuration::complexity_cost, "The cost of adding a branching node.");
     config.def_readwrite("max_gap", &Configuration::max_gap, "The maximum permissable gap from optimal (number of misclassifications).");
     config.def_readwrite("max_gap_decay", &Configuration::max_gap_decay, "The decay in the permissable gap.");
     config.def_readwrite("use_upper_bound", &Configuration::use_upper_bound, "Enable/disable the use of upper bounds.");
@@ -116,14 +117,17 @@ PYBIND11_MODULE(ccontree, m) {
            Solve
      ************************************/
     m.def("solve", [](const py::array_t<double, py::array::c_style>& _X,
-        const py::array_t<int, py::array::c_style>& _y, Configuration& config, double runtime_limit) {
+        const py::array_t<int, py::array::c_style>& _y, Configuration& _config, double runtime_limit) {
         py::scoped_ostream_redirect stream(std::cout, py::module_::import("sys").attr("stdout"));
-
+        _config.stopwatch.Initialise(runtime_limit);
+        
         Dataset unsorted_dataset{}; int class_number = -1;
         NumpyToConTreeData(_X, _y, unsorted_dataset, class_number);
         Dataset sorted_dataset = unsorted_dataset;
-
-        config.stopwatch.Initialise(runtime_limit);
+        
+        auto config = _config;
+        config.complexity_cost *= sorted_dataset.get_instance_number();
+        
         sorted_dataset.sort_feature_values();
         Dataview dataview(&sorted_dataset, &unsorted_dataset, class_number, config.sort_gini);
 

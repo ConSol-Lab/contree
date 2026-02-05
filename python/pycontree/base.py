@@ -15,11 +15,13 @@ class ConTree (BaseEstimator):
         "max_depth": [Interval(numbers.Integral, 0, 20, closed="both")],
         "max_gap": [Interval(numbers.Real, 0, 1, closed="both")],
         "max_gap_decay": [Interval(numbers.Real, 0, 1, closed="both")],
-        "time_limit": [Interval(numbers.Real, 0, None, closed="left")]
+        "time_limit": [Interval(numbers.Real, 0, None, closed="left")],
+        "complexity_cost": [Interval(numbers.Real, 0, 1, closed="both")],
     }
 
     def __init__(self, 
             max_depth: int = 3,
+            complexity_cost: float = 0.0,
             max_gap: float = 0,
             max_gap_decay: float = 0.1,
             use_upper_bound: bool = True,
@@ -30,6 +32,7 @@ class ConTree (BaseEstimator):
         Construct a ConTree Classifier
         """
         self.max_depth: int = max_depth
+        self.complexity_cost: float = complexity_cost
         self.max_gap: int = max_gap
         self.max_gap_decay: float = max_gap_decay
         self.use_upper_bound: bool = use_upper_bound
@@ -44,6 +47,7 @@ class ConTree (BaseEstimator):
     def _initialize_config(self):
         self._config = Config()
         self._config.max_depth = self.max_depth
+        self._config.complexity_cost = self.complexity_cost
         self._config.max_gap = self.max_gap
         self._config.max_gap_decay = self.max_gap_decay
         self._config.use_upper_bound = self.use_upper_bound
@@ -57,7 +61,6 @@ class ConTree (BaseEstimator):
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", category=FutureWarning)
             X = validate_data(self, X, ensure_min_samples=2, dtype=np.float64)
-            
             y = check_array(y, ensure_2d=False, dtype=np.intc)
             self.n_classes_ = len(np.unique(y))
             if X.shape[0] != y.shape[0]:
@@ -70,9 +73,9 @@ class ConTree (BaseEstimator):
         """
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", category=FutureWarning)
+            warnings.filterwarnings(action="ignore", message="X does not have valid feature names, but .* was fitted with feature names", 
+                                    category=UserWarning, module="sklearn.utils.validation")
             X = validate_data(self, X, reset=False, dtype=np.float64)
-            
-            
             y = check_array(y, ensure_2d=False, dtype=np.intc)
             if X.shape[0] != y.shape[0]:
                 raise ValueError('x and y have different number of rows')
@@ -84,6 +87,8 @@ class ConTree (BaseEstimator):
         """
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", category=FutureWarning)
+            warnings.filterwarnings(action="ignore", message="X does not have valid feature names, but .* was fitted with feature names", 
+                                    category=UserWarning, module="sklearn.utils.validation")
             return validate_data(self, X, reset=False, dtype=np.float64)
 
     def fit(self, X, y) -> Self:
@@ -123,17 +128,15 @@ class ConTree (BaseEstimator):
         Predicts the target variable for the given input feature data.
 
         Args:
-            x : array-like, shape = (n_samples, n_features)
+            X : array-like, shape = (n_samples, n_features)
             Data matrix
 
         Returns:
             numpy.ndarray: A 1D array that represents the predicted target variable of the test data.
-                The i-th element in this array corresponds to the predicted target variable for the i-th instance in `x`.
+                The i-th element in this array corresponds to the predicted target variable for the i-th instance in `X`.
         """
         check_is_fitted(self, "tree_")
-        
         X = self._process_predict_data(X)
-   
         return self.tree_.predict(X)
 
     def predict_proba(self, X):
@@ -183,7 +186,7 @@ class ConTree (BaseEstimator):
         Computes the score for the given input feature data
 
         Args:
-            x : array-like, shape = (n_samples, n_features)
+            X : array-like, shape = (n_samples, n_features)
             Data matrix
             y_true : array-like, shape = (n_samples)
             The true labels
@@ -195,6 +198,49 @@ class ConTree (BaseEstimator):
         X, y_true = self._process_score_data(X, y_true)
         y_pred = self.predict(X)
         return accuracy_score(y_true, y_pred)
+    
+    def get_average_question_length(self, X) -> float:
+        """
+        Computes the average number of branching nodes visited until it reaches a leaf node by all samples
+
+        Args:
+            X : array-like, shape = (n_samples, n_features)
+            Data matrix
+
+        Returns:
+            float: The average question length
+        """
+        return self.get_question_length(X).mean()
+    
+    def get_question_length(self, X) -> np.ndarray:
+        """
+        Computes for each sample the number of branching nodes it visits until it reaches a leaf node
+
+        Args:
+            X : array-like, shape = (n_samples, n_features)
+            Data matrix
+
+        Returns:
+            numpy.ndarray of shape (n_samples,):  A 1D array that represents the question length of the data.
+                The i-th element in this array corresponds to the number of branching nodes visited by the i-th instance in `X`
+        """
+        check_is_fitted(self, "tree_")
+        X = self._process_predict_data(X)
+        X = np.asarray(X, dtype=np.float64)
+        result = np.zeros(len(X))
+        present = np.ones(len(X), dtype=bool)
+        self._recursive_get_question_length(self.tree_, X, present, result)
+        return result
+
+    def _recursive_get_question_length(self, tree, X, present, result):
+        if tree.is_leaf_node(): return
+        result[present] += 1
+        left_tree  = tree.get_left()
+        right_tree = tree.get_right()
+        left_present  = present & (X[:, tree.get_split_feature()] <= tree.get_split_threshold())
+        right_present = present & (X[:, tree.get_split_feature()] >  tree.get_split_threshold())
+        self._recursive_get_question_length(left_tree,  X, left_present,  result)
+        self._recursive_get_question_length(right_tree, X, right_present, result)
 
     def get_num_branching_nodes(self) -> int:
         """

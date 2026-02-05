@@ -20,6 +20,7 @@ void create_optimal_decision_tree(std::string file_name, int run_number, Configu
 
     Dataset unsorted_dataset{}; int class_number = -1; 
     file_reader::read_file(file_name, unsorted_dataset, class_number);
+    config.complexity_cost *= unsorted_dataset.get_instance_number();
 
     for (int run = 0; run < run_number; run++) {
         
@@ -53,8 +54,11 @@ void create_optimal_decision_tree(std::string file_name, int run_number, Configu
     }
 
     double average_time = (double) total_time / run_number / 1000.0;
-    std::cout << "Misclassification score: " << optimal_decision_tree->misclassification_score << std::endl;
-    std::cout << "Accuracy: " << ((double) instance_number - optimal_decision_tree->misclassification_score) / (double) instance_number << std::endl;
+    int misclassification_score = int(std::round(optimal_decision_tree->objective - optimal_decision_tree->get_num_branching_nodes() * config.complexity_cost));
+    std::cout << "Objective: " << optimal_decision_tree->objective << std::endl;
+    std::cout << "Misclassification score: " << misclassification_score << std::endl;
+    std::cout << "Accuracy: " << ((double) instance_number - misclassification_score) / (double) instance_number << std::endl;
+    std::cout << "Number of branching nodes: " << optimal_decision_tree->get_num_branching_nodes() << std::endl;
     std::cout << "Average time taken to get the decision tree: " << std::fixed << std::setprecision(4) << average_time << " seconds" << std::endl;
     std::cout << "Optimal tree: " << std::fixed << std::setprecision(8) << *optimal_decision_tree << std::endl;
 
@@ -85,6 +89,7 @@ int main(int argc, char *argv[]) {
     config.max_gap = int(parameters.GetIntegerParameter("max-gap"));
     config.max_gap_decay = float(parameters.GetFloatParameter("max-gap-decay"));
     config.sort_gini = parameters.GetBooleanParameter("sort-features-gini-index");
+    config.complexity_cost = float(parameters.GetFloatParameter("complexity-cost"));
     
     
     if (config.print_logs) {

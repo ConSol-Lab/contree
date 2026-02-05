@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <cmath>
 
 class IntervalsPruner {
 public:
@@ -16,14 +17,18 @@ public:
      * 
      * @param possible_split_indexes_ref Reference to a vector containing possible split indices.
      * @param max_gap The maximum allowable gap for the solution to be considered valid (off by at most max_gap).
+     * @param complexity_cost The cost of adding a branching node
      */
-    IntervalsPruner(const std::vector<int>& possible_split_indexes_ref, int max_gap);
+    IntervalsPruner(const std::vector<int>& possible_split_indexes_ref, int max_gap, float complexity_cost);
 
+    /**
+    * We store the intervals using four values
+    */
     struct Bound {
-        int left_bound;                
-        int right_bound;               
-        int last_split_left_index;     
-        int last_split_right_index;    
+        int left_bound;             // the left split-index bound (inclusive) of the interval
+        int right_bound;            // the right split-index bound (inclusive) of the interval
+        int last_split_left_index;  // the last split index tested to the left of the left_bound (-1 if not set)
+        int last_split_right_index; // the last split index tested to the right of the right_bound (-1 if not set)
     };
 
     /**
@@ -39,7 +44,7 @@ public:
      * @param split_index The index at which the split is evaluated.
      * @return A pair of integers representing the new pruned interval bounds.
      */
-    std::pair<int, int> neighbourhood_pruning(int score_difference, int left, int right, int split_index);
+    std::pair<int, int> neighbourhood_pruning(float score_difference, int left, int right, int split_index);
 
     /**
      * Applies subinterval pruning to determine if a given interval can be entirely pruned.
@@ -51,7 +56,7 @@ public:
      * @param current_best_score The best score obtained so far, used as a reference for pruning.
      * @return True if the subinterval can be pruned, otherwise false.
      */
-    bool subinterval_pruning(const Bound& current_bounds, int current_best_score);
+    bool subinterval_pruning(const Bound& current_bounds, float current_best_score);
 
     /**
      * Performs interval shrinking by narrowing the bounds of the interval based on the current best score.
@@ -63,7 +68,7 @@ public:
      * @param current_bounds The current bounds of the interval to be updated by shrinking
      * @param current_best_score The best score to compare against during the shrinking process.
      */
-    void interval_shrinking(Bound& current_bounds, int current_best_score);
+    void interval_shrinking(Bound& current_bounds, float current_best_score);
 
     /**
      * Records the result of a split, storing the index and associated scores.
@@ -75,15 +80,16 @@ public:
      * @param left_score The score associated with the left subinterval.
      * @param right_score The score associated with the right subinterval.
      */
-    void add_result(int index, int left_score, int right_score);
+    void add_result(int index, float left_score, float right_score);
 
 private:
     const std::vector<int>& possible_split_indexes; 
     int possible_split_size;                    
     int rightmost_zero_index;                      
     int leftmost_zero_index;                       
-    int max_gap;                                   
-    std::unordered_map<int, std::pair<int, int>> evaluated_indices_record; 
+    int max_gap;
+    float complexity_cost;
+    std::unordered_map<int, std::pair<float, float>> evaluated_indices_record; 
 };
 
 #endif // INTERVALS_PRUNER_H

@@ -31,13 +31,14 @@ extern std::chrono::high_resolution_clock::time_point starting_time;
 #endif
 
 struct Configuration {
-    int max_depth;
-    int max_gap;
-    float max_gap_decay;
-    bool print_logs;
-    bool use_upper_bound;
+    int max_depth{ 3 };
+    int max_gap{ 0 };
+    float max_gap_decay{ 0.0 };
+    bool print_logs{ false };
+    bool use_upper_bound{ true };
     bool is_root{ false };
     bool sort_gini{ false };
+    float complexity_cost{ 0.0 };
     Stopwatch stopwatch;
     Configuration GetLeftSubtreeConfig() const;
     Configuration GetRightSubtreeConfig(int left_gap) const;

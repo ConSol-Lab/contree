@@ -6,7 +6,7 @@ from glob import glob
 # Define package metadata
 package_name = 'pycontree'
 extension_name = 'ccontree'
-__version__ = "1.0.4"
+__version__ = "1.0.6"
 
 ext_modules = [
     Pybind11Extension(package_name + '.' + extension_name,

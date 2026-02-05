@@ -9,14 +9,14 @@
 
 struct Tree {
     Tree();
-    Tree(int label, int misclassifications);
-    Tree(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right);
+    Tree(int label, float objective);
+    Tree(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right, float complexity_cost);
 
     std::shared_ptr<Tree> left{ nullptr }, right{ nullptr };
     int split_feature = -1, label = -1;
     float split_threshold = 0.0;
 
-    int misclassification_score = INT_MAX;
+    float objective = INT_MAX;
 
     bool is_leaf() const;
     bool is_internal() const;
@@ -33,7 +33,7 @@ struct Tree {
     inline std::shared_ptr<Tree> get_right_tree() const { return right; }
 
     void make_leaf(int label, int misclassifications);
-    void update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right);
+    void update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right, float complexity_cost);
 
     std::string to_string(int indent = 0) const;
 };
