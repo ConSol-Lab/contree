@@ -6,6 +6,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <iostream>
+#include <memory>
 
 #define EPSILON 0.0000001f
 
