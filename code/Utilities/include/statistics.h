@@ -3,13 +3,13 @@
 
 class statistics {
 public:
-    static unsigned long long total_number_of_specialized_solver_calls;
-    static unsigned long long total_number_of_general_solver_calls;
-    static unsigned long long total_number_cache_hits;
+    unsigned long long total_number_of_specialized_solver_calls{ 0 };
+    unsigned long long total_number_of_general_solver_calls{ 0 };
+    unsigned long long total_number_cache_hits{ 0 };
 
-    static bool should_print;
+    bool should_print{ false };
 
-    static void print_statistics();
+    void print_statistics();
 };
 
 #endif // STATISTICS_H

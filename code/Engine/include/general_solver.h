@@ -9,7 +9,6 @@
 #include "cache.h"
 #include "dataset.h"
 #include "dataview.h"
-#include "general_solver.h"
 #include "intervals_pruner.h"
 #include "specialized_solver.h"
 #include "statistics.h"
@@ -31,6 +30,7 @@ struct SplitInfo {
     int mid = -1;           // the mid point in the interval, the split point we are splitting on now
     int split_point = -1;   // the sample index of the first sample right of the split
     float threshold = -1;   // the split threshold (in the continuous numbers, not the unique_value_index)
+    int unique_value_threshold = -1; // the split threshold (in the unique value index, not the continuous value)
     std::shared_ptr<Tree> left_optimal_dt;
     std::shared_ptr<Tree> right_optimal_dt;
 };
@@ -72,7 +72,7 @@ private:
      * @param current_optimal_tree The current optimal tree.
      * @param upper_bound The upper bound for the search space.
      */
-    static void solve_split(const Dataview& dataview, const Configuration& config, SplitInfo& split, std::shared_ptr<Tree>& current_optimal_tree, float upper_bound);
+    static void solve_split(const Dataview& dataview, Configuration& config, SplitInfo& split, std::shared_ptr<Tree>& current_optimal_tree, float upper_bound);
     
     /**
      * Calculates the misclassification score if the current node is a leaf node.

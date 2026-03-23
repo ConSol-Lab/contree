@@ -10,11 +10,13 @@
 #include "dataset.h"
 #include "dataview.h"
 #include "intervals_pruner.h"
-#include "specialized_solver.h"
 #include "statistics.h"
 #include "tree.h"
 
+
 class Depth1ScoreHelper;
+
+struct SplitInfo;
 
 class SpecializedSolver {
 public:
@@ -22,16 +24,11 @@ public:
      * Calculates the misclassification scores for both the left and right splits of the dataset using only one dataset traversal.
      * 
      * @param dataset The dataset to calculate the scores from.
-     * @param feature_index The index of the feature to split on.
-     * @param split_point The split point for the feature.
-     * @param threshold The threshold value for the split.
-     * @param left_optimal_tree The optimal tree for the left split.
-     * @param right_optimal_tree The optimal tree for the right split.
+     * @param split Information on the root node split, such as what feature to split on
      * @param upper_bound The upper bound for the scores.
      * @param complexity_cost The cost of adding a node
      */
-    static void get_best_left_right_scores(const Dataview& dataset, int feature_index, int split_point, float threshold, 
-        std::shared_ptr<Tree>& left_optimal_tree, std::shared_ptr<Tree>& right_optimal_tree, float upper_bound, float complexity_cost);
+    static void get_best_left_right_scores(const Dataview& dataset, SplitInfo& split, float upper_bound, float complexity_cost);
 
 private:
     /**

@@ -127,6 +127,7 @@ PYBIND11_MODULE(ccontree, m) {
         
         auto config = _config;
         config.complexity_cost *= sorted_dataset.get_instance_number();
+        config.stats = std::make_shared<statistics>();
         
         sorted_dataset.sort_feature_values();
         Dataview dataview(&sorted_dataset, &unsorted_dataset, class_number, config.sort_gini);
@@ -143,7 +144,7 @@ PYBIND11_MODULE(ccontree, m) {
         } while (max_gap > 0);
 
         if (config.print_logs) {
-            statistics::print_statistics();
+            config.stats->print_statistics();
             if (!config.stopwatch.IsWithinTimeLimit()) {
                 std::cout << std::endl << "The search was stopped because of a time-out. The tree is possibly not optimal." << std::endl << std::endl;
             }

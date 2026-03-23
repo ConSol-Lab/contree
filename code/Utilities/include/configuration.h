@@ -1,8 +1,8 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-#include <chrono>
 #include "stopwatch.h"
+#include "statistics.h"
 #include <cassert>
 #include <stdexcept>
 #include <iostream>
@@ -10,10 +10,6 @@
 #define EPSILON 0.0000001f
 
 #define PRINT_INTERMEDIARY_TIME_SOLUTIONS 0
-extern std::chrono::high_resolution_clock::time_point starting_time;
-
-
-
 
 #ifdef NDEBUG
 #define RUNTIME_ASSERT(cond, msg) ((void)0)
@@ -31,6 +27,9 @@ extern std::chrono::high_resolution_clock::time_point starting_time;
 #endif
 
 struct Configuration {
+
+    Configuration() : stats(std::make_shared<statistics>()) {}
+
     int max_depth{ 3 };
     int max_gap{ 0 };
     float max_gap_decay{ 0.0 };
@@ -40,6 +39,7 @@ struct Configuration {
     bool sort_gini{ false };
     float complexity_cost{ 0.0 };
     Stopwatch stopwatch;
+    std::shared_ptr<statistics> stats{ nullptr };
     Configuration GetLeftSubtreeConfig() const;
     Configuration GetRightSubtreeConfig(int left_gap) const;
 };

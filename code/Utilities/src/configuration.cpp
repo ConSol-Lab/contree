@@ -1,7 +1,5 @@
 #include "configuration.h"
 
-std::chrono::high_resolution_clock::time_point starting_time = std::chrono::high_resolution_clock::now();
-
 Configuration Configuration::GetLeftSubtreeConfig() const {
 	Configuration left_config(*this);
 	left_config.max_depth -= 1;

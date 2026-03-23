@@ -14,7 +14,7 @@
 #include "tree.h"
 
 void create_optimal_decision_tree(std::string file_name, int run_number, Configuration& config, double runtime_limit) {
-    long long total_time = 0;
+    double total_time = 0;
     int instance_number = -1;
     std::shared_ptr<Tree> optimal_decision_tree;
 
@@ -26,8 +26,6 @@ void create_optimal_decision_tree(std::string file_name, int run_number, Configu
         
         Dataset sorted_dataset = unsorted_dataset;        
 
-        auto start = std::chrono::high_resolution_clock::now();
-        starting_time = start;
         config.stopwatch.Initialise(runtime_limit);
 
         sorted_dataset.sort_feature_values();
@@ -44,16 +42,14 @@ void create_optimal_decision_tree(std::string file_name, int run_number, Configu
             max_gap = int(max_gap * config.max_gap_decay);
         } while (max_gap > 0);
 
-        auto stop = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-        total_time += duration.count();
+        total_time += config.stopwatch.TimeElapsedInSeconds();
         instance_number = dataview.get_dataset_size();
         if (config.print_logs && !config.stopwatch.IsWithinTimeLimit()) {
             std::cout << std::endl << "The search was stopped because of a time-out. The tree is possibly not optimal." << std::endl << std::endl;
         }
     }
 
-    double average_time = (double) total_time / run_number / 1000.0;
+    double average_time = total_time / run_number;
     int misclassification_score = int(std::round(optimal_decision_tree->objective - optimal_decision_tree->get_num_branching_nodes() * config.complexity_cost));
     std::cout << "Objective: " << optimal_decision_tree->objective << std::endl;
     std::cout << "Misclassification score: " << misclassification_score << std::endl;
@@ -63,7 +59,7 @@ void create_optimal_decision_tree(std::string file_name, int run_number, Configu
     std::cout << "Optimal tree: " << std::fixed << std::setprecision(8) << *optimal_decision_tree << std::endl;
 
     if (config.print_logs) {
-        statistics::print_statistics();
+        config.stats->print_statistics();
     }
 
 }
