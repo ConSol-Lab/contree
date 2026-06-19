@@ -28,6 +28,8 @@ public:
     float best_threshold = -1.0f;
     int best_left_label = -1;
     int best_right_label = -1;
+    int best_left_score = -1;
+    int best_right_score = -1;
 
     float previous_value = 0.0f;
     int previous_unique_value_index = -1;
@@ -44,9 +46,8 @@ public:
     std::vector<int> current_label_frequency;
 };
 
-void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, SplitInfo& split, float upper_bound, float complexity_cost) {
+void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, SplitInfo& split, float complexity_cost) {
     RUNTIME_ASSERT(dataview.get_dataset_size() > 0, "Dataset cannot be empty.");
-    RUNTIME_ASSERT(upper_bound >= complexity_cost, "Upper bound should always be complexity-cost or higher.");
     RUNTIME_ASSERT(split.left_optimal_dt->objective >= 0, "Current objective should always be zero or higher.");
     RUNTIME_ASSERT(split.right_optimal_dt->objective >= 0, "Current objective should always be zero or higher.");
     
@@ -70,8 +71,8 @@ void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, Spl
     Depth1ScoreHelper right_tree(dataset_size - split.split_point, class_number);
     
 
-    left_tree.classification_score = std::max(0.0f, float(left_tree.size) - upper_bound);
-    right_tree.classification_score = std::max(0.0f, float(right_tree.size) - upper_bound);
+    left_tree.classification_score  = 0;
+    right_tree.classification_score = 0;
 
     Dataview::initialize_split_parameters(split_feature, class_number, dataview.get_label_frequency(), split.split_point, left_tree.label_frequency, right_tree.label_frequency);
 
@@ -94,10 +95,10 @@ void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, Spl
         if (left_tree.classification_score + right_tree.classification_score == dataset_size) break;
         if (current_feature_index == split.feature) {
             process_depth_one_feature<true>(dataview, split.feature, split.split_point, current_feature_index, split_index,
-                left_tree, right_tree, split_feature_split_indices, upper_bound, complexity_cost);
+                left_tree, right_tree, split_feature_split_indices, complexity_cost);
         } else {
             process_depth_one_feature<false>(dataview, split.feature, split.split_point, current_feature_index, split_index,
-                left_tree, right_tree, split_feature_split_indices, upper_bound, complexity_cost);
+                left_tree, right_tree, split_feature_split_indices, complexity_cost);
         }
     }
 
@@ -105,11 +106,9 @@ void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, Spl
         split.left_optimal_dt->make_leaf(left_tree.max_label, left_tree.size - left_tree.classification_score);
     } else {
         split.left_optimal_dt->update_split(left_tree.best_feature_index, left_tree.best_threshold, 
-            std::make_shared<Tree>(left_tree.best_left_label, -1), 
-            std::make_shared<Tree>(left_tree.best_right_label, -1), complexity_cost);
+            std::make_shared<Tree>(left_tree.best_left_label, left_tree.best_left_score), 
+            std::make_shared<Tree>(left_tree.best_right_label, left_tree.best_right_score), complexity_cost);
         split.left_optimal_dt->objective = left_tree.get_objective(complexity_cost);
-        //RUNTIME_ASSERT(left_tree.best_left_label != -1, "Left tree left label should be initialized.");
-        //RUNTIME_ASSERT(left_tree.best_right_label != -1, "Left tree right label should be initialized.");
     }
     RUNTIME_ASSERT(split.left_optimal_dt->objective >= 0, "LR - Left tree misclassification score should be non-negative.");
 
@@ -117,20 +116,20 @@ void SpecializedSolver::get_best_left_right_scores(const Dataview& dataview, Spl
         split.right_optimal_dt->make_leaf(right_tree.max_label, right_tree.size - right_tree.classification_score);
     } else {
         split.right_optimal_dt->update_split(right_tree.best_feature_index, right_tree.best_threshold,
-            std::make_shared<Tree>(right_tree.best_left_label, -1),
-            std::make_shared<Tree>(right_tree.best_right_label, -1), complexity_cost);
+            std::make_shared<Tree>(right_tree.best_left_label, right_tree.best_left_score),
+            std::make_shared<Tree>(right_tree.best_right_label, right_tree.best_right_score), complexity_cost);
         split.right_optimal_dt->objective = right_tree.get_objective(complexity_cost);
-        //RUNTIME_ASSERT(right_tree.best_left_label != -1, "Right tree left label should be initialized.");
-        //RUNTIME_ASSERT(right_tree.best_right_label != -1, "Right tree right label should be initialized.");
     }
     RUNTIME_ASSERT(split.right_optimal_dt->objective >= 0, "LR - Right tree misclassification score should be non-negative.");
+    split.left_optimal_dt->finalize_lower_bound(std::numeric_limits<float>::max());
+    split.right_optimal_dt->finalize_lower_bound(std::numeric_limits<float>::max());
 }
 
 template <bool is_same_feature>
 void SpecializedSolver::process_depth_one_feature(const Dataview& dataview,
     const int feature_index, const int split_point, const int current_feature_index, const int split_index,
     Depth1ScoreHelper& left_tree, Depth1ScoreHelper& right_tree,
-    const std::vector<int>& split_feature_split_indices, float& upper_bound, const float complexity_cost) {
+    const std::vector<int>& split_feature_split_indices, const float complexity_cost) {
     const std::vector<Dataset::FeatureElement>& current_feature = dataview.get_sorted_dataset_feature(current_feature_index);
     const int class_number = dataview.get_class_number();
     const int dataset_size = dataview.get_dataset_size();
@@ -195,7 +194,8 @@ void SpecializedSolver::process_depth_one_feature(const Dataview& dataview,
             tree.best_threshold = (current_feature_data.value + tree.previous_value) / 2.0f;
             tree.best_left_label = left_label;
             tree.best_right_label = right_label;
-            upper_bound = std::min(left_tree.get_objective(complexity_cost) + right_tree.get_objective(complexity_cost) + complexity_cost, upper_bound);
+            tree.best_left_score = tree.current_element_count - left_classification_score;
+            tree.best_right_score = (tree.size - tree.current_element_count) - right_classification_score;
         } else {
             tree.can_skip = tree.classification_score - (left_classification_score + right_classification_score);
         }

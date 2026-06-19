@@ -17,6 +17,7 @@ struct Tree {
     float split_threshold = 0.0;
 
     float objective = INT_MAX;
+    float lower_bound = 0.0;
 
     bool is_leaf() const;
     bool is_internal() const;
@@ -33,7 +34,13 @@ struct Tree {
     inline std::shared_ptr<Tree> get_right_tree() const { return right; }
 
     void make_leaf(int label, int misclassifications);
-    void update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right, float complexity_cost);
+    void update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree> left, const std::shared_ptr<Tree> right, float complexity_cost);
+    void finalize_lower_bound(float upper_bound);
+
+    void recursive_check_objective(const float complexity_cost, bool check_initialization) const;
+
+    int misclassification_score(const Dataset& data);
+    int misclassification_score(const Dataset& data, std::vector<int>& sample_ids);
 
     std::string to_string(int indent = 0) const;
 };

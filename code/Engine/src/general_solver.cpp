@@ -54,7 +54,7 @@ SplitInfo initialize_split(const std::vector<int>& possible_split_indices, const
     split.left = left;
     split.right = right;
     split.mid = (left + right) / 2;
-    split.split_point = possible_split_indices[(left + right) / 2];
+    split.split_point = possible_split_indices[split.mid];
     split.threshold = split.mid > 0 ? (current_feature[possible_split_indices[split.mid - 1]].value + current_feature[split.split_point].value) / 2.0f
         : (current_feature[split.split_point].value + current_feature[0].value) / 2.0f;
     split.unique_value_threshold = current_feature[split.split_point].unique_value_index;
@@ -107,9 +107,10 @@ void GeneralSolver::create_optimal_decision_tree(const Dataview& dataview, Confi
         solve_split(dataview, config, split, current_optimal_decision_tree, upper_bound);
 
         // compute the solution cost of the split. Check if both trees are properly initialized, and if the solution is better, update the incumbent
-        const float current_best_score = split.left_optimal_dt->objective + split.right_optimal_dt->objective + config.complexity_cost;
+        const float current_best_score = split.left_optimal_dt->lower_bound + split.right_optimal_dt->lower_bound + config.complexity_cost;
         if (split.left_optimal_dt->is_initialized() && split.right_optimal_dt->is_initialized() && current_best_score < current_optimal_decision_tree->objective) {
             current_optimal_decision_tree->update_split(feature_index, split.threshold, split.left_optimal_dt, split.right_optimal_dt, config.complexity_cost);
+            current_optimal_decision_tree->recursive_check_objective(config.complexity_cost, true);
             upper_bound = std::min(upper_bound, current_best_score);
             if (PRINT_INTERMEDIARY_TIME_SOLUTIONS && config.is_root)  {
                 std::cout << "Time taken to get the misclassification score " << current_best_score 
@@ -119,7 +120,7 @@ void GeneralSolver::create_optimal_decision_tree(const Dataview& dataview, Confi
             if (current_best_score <= config.complexity_cost + EPSILON) return;
         }
         // Add the result to the interval pruner
-        interval_pruner.add_result(split.mid, split.left_optimal_dt->objective, split.right_optimal_dt->objective);
+        interval_pruner.add_result(split.mid, split.left_optimal_dt->lower_bound, split.right_optimal_dt->lower_bound);
 
         // If the interval is just a single split point, then the interval cannot be further split up
         if (left == right) continue;
@@ -140,6 +141,8 @@ void GeneralSolver::create_optimal_decision_tree(const Dataview& dataview, Confi
             unsearched_intervals.push({left, new_bound_right, current_left_bound, split.mid});
         }
     }
+    current_optimal_decision_tree->finalize_lower_bound(upper_bound);
+    current_optimal_decision_tree->recursive_check_objective(config.complexity_cost, false);
 }
 
 void GeneralSolver::solve_split(const Dataview& dataview, Configuration& config, SplitInfo& split, std::shared_ptr<Tree>& current_optimal_tree, float upper_bound) {
@@ -149,7 +152,7 @@ void GeneralSolver::solve_split(const Dataview& dataview, Configuration& config,
     if (config.max_depth == 2) {
         // If the maximum remaining depth is two, we use our special depth two solver
         config.stats->total_number_of_specialized_solver_calls += 1;
-        SpecializedSolver::get_best_left_right_scores(dataview, split, upper_bound, config.complexity_cost);
+        SpecializedSolver::get_best_left_right_scores(dataview, split, config.complexity_cost);
         RUNTIME_ASSERT(split.left_optimal_dt->objective >= 0, "D2 - Left tree should have non-negative misclassification score.");
         RUNTIME_ASSERT(split.right_optimal_dt->objective >= 0, "D2 - Right tree should have non-negative misclassification score.");
     } else {
@@ -170,33 +173,34 @@ void GeneralSolver::solve_split(const Dataview& dataview, Configuration& config,
 
         // The upper bound of the subtree is the current upper bound minus the cost of branching
         float larger_ub = config.use_upper_bound
-            ? std::min(upper_bound, current_optimal_tree->objective) - config.complexity_cost
+            ? std::min(upper_bound + 1, current_optimal_tree->objective) - config.complexity_cost
             : current_optimal_tree->objective;
 
         // Recursively solve the subtree
         config.stats->total_number_of_general_solver_calls += 1;
         Configuration left_solution_configuration = config.GetLeftSubtreeConfig();
         GeneralSolver::create_optimal_decision_tree(larger_data, left_solution_configuration, larger_optimal_dt, larger_ub);
-        RUNTIME_ASSERT(larger_optimal_dt->objective >= 0, "Right tree should have non-negative misclassification score.");
-        RUNTIME_ASSERT(larger_optimal_dt->is_initialized(), "Right tree should be initialized.");
+        larger_optimal_dt->finalize_lower_bound(larger_ub);
 
         // The upper bound for the second subtree is the current upper bound minus the cost of branching and minus the cost of the first subtree.
         // However, we add the distance from the mid point to the end of the interval, to increase the probability that we can prune the whole interval.
-        float smaller_obj_ub = std::min(current_optimal_tree->objective, upper_bound) - larger_optimal_dt->objective - config.complexity_cost;
-        float smaller_ub = config.use_upper_bound ? smaller_obj_ub +  float(interval_half_distance) : current_optimal_tree->objective;
+        float smaller_obj_ub = std::min(current_optimal_tree->objective, upper_bound + 1) - larger_optimal_dt->lower_bound - config.complexity_cost;
+        float smaller_ub = config.use_upper_bound ? smaller_obj_ub + float(interval_half_distance) : current_optimal_tree->objective;
 
         // We compute the second subtree only if we have a positive upper bound, larger than zero.
         // If the upper bound is precisely zero, but not because of the interval_half distance, we also want to compute the subproblem
-        if (smaller_ub > 0 || (std::abs(smaller_ub) <= EPSILON && std::abs(smaller_obj_ub) <= EPSILON)) {
+        if (smaller_ub > 0 || std::abs(smaller_obj_ub) <= EPSILON) {
             config.stats->total_number_of_general_solver_calls += 1;
             Configuration right_solution_configuration = config.GetRightSubtreeConfig(left_solution_configuration.max_gap);
             GeneralSolver::create_optimal_decision_tree(smaller_data, right_solution_configuration, smaller_optimal_dt, smaller_ub);
-            RUNTIME_ASSERT(smaller_optimal_dt->objective >= 0, "Left tree should have non-negative misclassification score.");
-            RUNTIME_ASSERT(smaller_optimal_dt->is_initialized(), "Left tree should be initialized.");
+            smaller_optimal_dt->finalize_lower_bound(smaller_ub);
         } else {
             // Because the upper bound is negative, we are not going to search the second subproblem
             // So we set its objective to the trivial lower bound: zero
-            smaller_optimal_dt->objective = 0;
+            smaller_optimal_dt->lower_bound = 0;
+            smaller_optimal_dt->label = -1;
+            smaller_optimal_dt->split_feature = -1;
+            smaller_optimal_dt->objective = INT32_MIN;
         }
     }
 }

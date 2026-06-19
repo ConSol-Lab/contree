@@ -51,8 +51,16 @@ void create_optimal_decision_tree(std::string file_name, int run_number, Configu
 
     double average_time = total_time / run_number;
     int misclassification_score = int(std::round(optimal_decision_tree->objective - optimal_decision_tree->get_num_branching_nodes() * config.complexity_cost));
+    int check_misclassification_score = optimal_decision_tree->misclassification_score(unsorted_dataset);
     std::cout << "Objective: " << optimal_decision_tree->objective << std::endl;
-    std::cout << "Misclassification score: " << misclassification_score << std::endl;
+    if (check_misclassification_score == misclassification_score) {
+        std::cout << "Misclassification score: " << misclassification_score << std::endl;
+    } else {
+        std::cout << "Reported misclassification score: " << misclassification_score << std::endl;
+        std::cout << "Observed misclassification score: " << check_misclassification_score << std::endl;
+        std::cout << "Error! reported and observed misclassification score do not match! Please report a bug!" << std::endl;
+    }
+    RUNTIME_ASSERT(misclassification_score == check_misclassification_score, "The reported misclassification score should be the same as what the tree predicts.");
     std::cout << "Accuracy: " << ((double) instance_number - misclassification_score) / (double) instance_number << std::endl;
     std::cout << "Number of branching nodes: " << optimal_decision_tree->get_num_branching_nodes() << std::endl;
     std::cout << "Average time taken to get the decision tree: " << std::fixed << std::setprecision(4) << average_time << " seconds" << std::endl;

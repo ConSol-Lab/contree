@@ -1,4 +1,6 @@
 #include "tree.h"
+#include "dataset.h"
+#include <numeric>
 
 Tree::Tree() = default;
 
@@ -42,13 +44,61 @@ void Tree::make_leaf(int label, int misclassifications) {
     split_threshold = 0.0;
 }
 
-void Tree::update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree>& left, const std::shared_ptr<Tree>& right, float complexity_cost) {
+void Tree::update_split(int split_feature, float split_threshold, const std::shared_ptr<Tree> left, const std::shared_ptr<Tree> right, float complexity_cost) {
     this->label = -1;
     this->split_feature = split_feature;
     this->split_threshold = split_threshold;
-    this->left = left;
-    this->right = right;
+    this->left = std::make_shared<Tree>(*left);
+    this->right = std::make_shared<Tree>(*right);
     this->objective = left->objective + right->objective + complexity_cost;
+}
+
+void Tree::finalize_lower_bound(const float upper_bound) {
+    if (this->objective > upper_bound + EPSILON) {
+        this->lower_bound = upper_bound;
+        this->split_feature = -1;
+        this->label = -1;
+    } else {
+        this->lower_bound = this->objective;
+    }
+}
+
+void Tree::recursive_check_objective(const float complexity_cost, bool check_initialization) const {
+    if (check_initialization) RUNTIME_ASSERT(is_initialized(), "A returned tree should be initialized.");
+    if (is_leaf()) return;
+    RUNTIME_ASSERT(left->objective + right->objective + complexity_cost == objective,
+        "The solution value is not equal to the sum of the left and right tree solution value.");
+    left->recursive_check_objective(complexity_cost, check_initialization);
+    right->recursive_check_objective(complexity_cost, check_initialization);
+}
+
+int Tree::misclassification_score(const Dataset& data) {
+    RUNTIME_ASSERT(is_initialized(), "Tree should be initialized.");
+    std::vector<int> sample_ids(data.get_instance_number());
+    std::iota(sample_ids.begin(), sample_ids.end(), 0);
+    return misclassification_score(data, sample_ids);
+}
+
+int Tree::misclassification_score(const Dataset& data, std::vector<int>& sample_ids) {
+    RUNTIME_ASSERT(is_initialized(), "Tree should be initialized.");
+    if (is_leaf()) {
+        int misclassifications = 0;
+        for (int i: sample_ids) {
+            RUNTIME_ASSERT(data.feature_data[0][i].data_point_index == i, "Should be run on an unsorted dataset.");
+            misclassifications += data.feature_data[0][i].label == label ? 0 : 1;
+        }
+        return misclassifications;
+    }
+    std::vector<int> left_samples, right_samples;
+    for (int i : sample_ids) {
+        RUNTIME_ASSERT(data.feature_data[0][i].data_point_index == i, "Should be run on an unsorted dataset.");
+        if (data.feature_data[split_feature][i].value <= split_threshold) {
+            left_samples.push_back(i);
+        } else {
+            right_samples.push_back(i);
+        }
+    }
+    return left->misclassification_score(data, left_samples) + right->misclassification_score(data, right_samples);
 }
 
 std::ostream& operator<<(std::ostream& os, const Tree& t) {

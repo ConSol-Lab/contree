@@ -28,7 +28,7 @@ public:
      * @param upper_bound The upper bound for the scores.
      * @param complexity_cost The cost of adding a node
      */
-    static void get_best_left_right_scores(const Dataview& dataset, SplitInfo& split, float upper_bound, float complexity_cost);
+    static void get_best_left_right_scores(const Dataview& dataset, SplitInfo& split, float complexity_cost);
 
 private:
     /**
@@ -49,7 +49,7 @@ private:
     static void process_depth_one_feature(const Dataview& dataview,
         const int feature_index, const int split_point, const int current_feature_index, const int split_index,
         Depth1ScoreHelper& left_tree, Depth1ScoreHelper& right_tree,
-        const std::vector<int>& split_feature_split_indices, float& upper_bound, const float complexity_cost);
+        const std::vector<int>& split_feature_split_indices, const float complexity_cost);
 };
 
 #endif // SPECIALIZED_SOLVER_H
